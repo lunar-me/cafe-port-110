@@ -16,8 +16,11 @@ import socket
 import subprocess
 import sys
 import time
+import types
 from pathlib import Path
 from typing import List
+
+import cafeport110
 
 HOST = "127.0.0.1"
 SCRIPT = Path(__file__).with_name("cafeport110.py")
@@ -545,6 +548,79 @@ def test_keypress_exits() -> None:
             time.sleep(0.05)
         assert server._proc.poll() is not None, "keypress did not stop the server"
         assert not Server.listening(server.port), "listener was left open"
+
+
+def test_keypress_uses_getch_on_a_console() -> None:
+    """A console keypress is read with getch(), never a buffered stdin read.
+
+    This is the regression test for the "press any key" bug: on Windows
+    ``sys.stdin.buffer.read(1)`` is line-oriented, so reaching it means the user
+    has to press Enter. ``wait_for_keypress`` must therefore pick
+    ``msvcrt.getch`` whenever stdin is a terminal -- checking ``kbhit()`` first
+    sent the "nothing typed yet" case down the buffered path.
+    """
+    calls: List[str] = []
+    fake_msvcrt = types.SimpleNamespace(
+        kbhit=lambda: calls.append("kbhit") or False,
+        getch=lambda: calls.append("getch") or b"x",
+    )
+    stdin = types.SimpleNamespace(
+        isatty=lambda: True,
+        read=lambda n: calls.append("read"),
+        buffer=types.SimpleNamespace(read=lambda n: calls.append("buffer")),
+    )
+    real_msvcrt, real_stdin = sys.modules.get("msvcrt"), sys.stdin
+    sys.modules["msvcrt"] = fake_msvcrt
+    sys.stdin = stdin
+    try:
+        cafeport110.wait_for_keypress()
+    finally:
+        sys.stdin = real_stdin
+        if real_msvcrt is None:
+            del sys.modules["msvcrt"]
+        else:
+            sys.modules["msvcrt"] = real_msvcrt
+
+    assert calls == ["getch"], calls
+
+
+def test_keypress_reads_one_byte_from_a_pipe() -> None:
+    """With stdin redirected to a pipe, one raw byte still means "exit"."""
+    calls: List[str] = []
+    stdin = types.SimpleNamespace(
+        isatty=lambda: False,
+        read=lambda n: calls.append("read"),
+        buffer=types.SimpleNamespace(read=lambda n: calls.append("buffer")),
+    )
+    real_stdin = sys.stdin
+    sys.stdin = stdin
+    try:
+        cafeport110.wait_for_keypress()
+    finally:
+        sys.stdin = real_stdin
+
+    # A pipe must not go through getch(): msvcrt is not even imported.
+    assert calls == ["buffer"], calls
+
+
+def test_keypress_survives_missing_stdin() -> None:
+    """pythonw.exe has no stdin at all; that must not crash the watcher.
+
+    ``watch_stdin`` catches whatever this raises and logs a warning, so the
+    server keeps running and Ctrl+C still works. The assertion here just pins
+    down that the failure is an exception rather than, say, a hang.
+    """
+    real_stdin = sys.stdin
+    sys.stdin = None
+    try:
+        try:
+            cafeport110.wait_for_keypress()
+        except (AttributeError, OSError):
+            pass
+        else:
+            raise AssertionError("no stdin should not be reported as a keypress")
+    finally:
+        sys.stdin = real_stdin
 
 
 def test_smtp_banner_is_branded() -> None:

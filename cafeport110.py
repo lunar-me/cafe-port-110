@@ -631,19 +631,30 @@ class SMTP(Protocol):
 def wait_for_keypress() -> None:
     """Block until a key is pressed, however stdin is wired up.
 
-    On Windows a console keypress is read with :func:`msvcrt.getch`, while a
-    pipe or redirected file feeds ``sys.stdin.buffer``: the *text* ``sys.stdin``
-    wrapper swallows those bytes into its own (unused) buffer. ``msvcrt.kbhit``
-    distinguishes the two cases without ever blocking on the console.
+    On Windows a *console* keypress is read with :func:`msvcrt.getch`, which
+    returns the moment any key goes down -- no Enter needed. A pipe or
+    redirected file instead feeds ``sys.stdin.buffer``: the *text* ``sys.stdin``
+    wrapper swallows those bytes into its own (unused) buffer, so the buffer
+    underneath has to be read directly.
+
+    The choice is made by asking ``isatty()``, *not* by ``msvcrt.kbhit()``.
+    ``kbhit()`` only reports input that is already queued, so testing it first
+    sends the common case (nobody has typed yet) down the ``sys.stdin.buffer``
+    path; on Windows that is a buffered, line-oriented read, and it sits there
+    until Enter arrives. That is exactly the "you have to press Enter after any
+    key" bug. ``getch()`` is uninterruptible while it waits, which is fine here
+    because this helper runs in a worker thread that is abandoned at exit.
     """
-    try:
-        import msvcrt  # type: ignore[import-not-found]
-    except ImportError:
-        sys.stdin.read(1)
-        return
-    if msvcrt.kbhit():
+    if sys.stdin is not None and sys.stdin.isatty():
+        try:
+            import msvcrt  # type: ignore[import-not-found]
+        except ImportError:
+            # POSIX terminal: a single byte is already unbuffered enough.
+            sys.stdin.read(1)
+            return
         msvcrt.getch()
         return
+    # stdin is a pipe, a file, or absent entirely: one raw byte is the signal.
     sys.stdin.buffer.read(1)
 
 

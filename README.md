@@ -58,7 +58,7 @@ systems (below 1024). Either run as root, or pick high ports with `--port` and
 | `--smtp-port PORT` | `25` | Listen for SMTP on `PORT`. |
 | `--no-smtp` | off | Don't run the SMTP server at all. |
 | `--verbose` | off | Log debug messages, including the raw bytes on the wire and every body line. |
-| `--press-any-key-to-exit` / `--no-press-any-key-to-exit` | on when stdin is a terminal | Exit when a key is pressed. Handy on Windows, where Ctrl+C is easy to fumble. |
+| `--press-any-key-to-exit` / `--no-press-any-key-to-exit` | on when stdin is a terminal | Exit when a key is pressed — no Enter needed. Handy on Windows, where Ctrl+C is easy to fumble. |
 
 The protocol for an incoming connection is chosen by **which local port it
 arrived on**, not by sniffing the first bytes. If you set both ports to the same
