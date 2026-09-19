@@ -1,0 +1,51 @@
+[build-system]
+# setuptools rather than the modern hatchling/flit, so that
+# "uvx --from git+https://github.com/lunar-me/cafe-port-110 cafe-port-110"
+# builds the same way pip does, with no extra tooling to learn.
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "cafe-port-110"
+version = "1.0.0"
+description = "Dummy POP3 and SMTP servers that accept anything and store nothing"
+readme = "README.md"
+requires-python = ">=3.8"
+# SPDX expression, the modern spelling. The "License :: OSI Approved" classifier
+# it replaces is deprecated and setuptools warns about it at build time.
+license = "MIT"
+license-files = ["LICENSE"]
+authors = [{ name = "lunar-me", email = "lanarme@proton.me" }]
+keywords = ["pop3", "smtp", "dummy", "mock", "testing", "mail", "trio"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Communications :: Email",
+    "Topic :: Software Development :: Testing",
+]
+# The one runtime dependency. Mirrored as trio>=0.27 in requirements.txt: 0.27
+# is the last release supporting Python 3.8, so a pin here would quietly
+# contradict requires-python above.
+dependencies = ["trio"]
+
+[project.optional-dependencies]
+test = ["pytest>=7.0"]
+
+[project.urls]
+Source = "https://github.com/lunar-me/cafe-port-110"
+Issues = "https://github.com/lunar-me/cafe-port-110/issues"
+
+[project.scripts]
+# Install this project and get a "cafe-port-110" command that calls main().
+cafe-port-110 = "cafeport110:main"
+
+[tool.setuptools]
+# One top-level module ("cafeport110"), not a package directory.
+py-modules = ["cafeport110"]

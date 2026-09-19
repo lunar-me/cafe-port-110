@@ -1,0 +1,9 @@
+# Runtime dependencies: the one third-party package Cafe Port 110 needs.
+#
+# Install with:  pip install -r requirements.txt
+#
+# Keeping in step with pyproject.toml, which declares the same thing as
+# dependencies = ["trio"] and the same requires-python = ">=3.8". Trio 0.27 is
+# the last release supporting Python 3.8, so it is the floor on purpose: pin
+# anything newer here and the documented 3.8 support would break.
+trio>=0.27
